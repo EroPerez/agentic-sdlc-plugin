@@ -2,11 +2,12 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { nativeEntrypoints } from '../scripts/sdlc-hosts.mjs'
 import { install, PLATFORMS } from '../scripts/sdlc-install.mjs'
 
-const ROOT = resolve(import.meta.dirname ?? new URL('..', import.meta.url).pathname, '..')
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 test('all five native integration manifests are present and have two distinct roles', () => {
   const entries = nativeEntrypoints(PLATFORMS, ROOT)
