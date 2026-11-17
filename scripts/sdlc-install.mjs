@@ -4,6 +4,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileS
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nativeEntrypoints } from './sdlc-hosts.mjs'
+import { generatedRoleEntrypoints } from './sdlc-roles.mjs'
 
 export const PLATFORMS = ['codex', 'opencode', 'copilot', 'claude', 'cursor']
 const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -90,6 +91,10 @@ export function plannedFiles(platforms, source = SOURCE) {
   source = resolve(source)
   const planned = new Map(entrypoints(platforms))
   for (const [path, content] of nativeEntrypoints(platforms, source)) {
+    if (planned.has(path)) throw new Error(`Duplicate generated entrypoint: ${path}`)
+    planned.set(path, content)
+  }
+  for (const [path, content] of generatedRoleEntrypoints(platforms, source)) {
     if (planned.has(path)) throw new Error(`Duplicate generated entrypoint: ${path}`)
     planned.set(path, content)
   }
