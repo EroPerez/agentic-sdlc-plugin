@@ -3,6 +3,7 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { nativeEntrypoints } from './sdlc-hosts.mjs'
 
 export const PLATFORMS = ['codex', 'opencode', 'copilot', 'claude', 'cursor']
 const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -91,6 +92,10 @@ export function install({ target, platforms }, source = SOURCE) {
   if (target === source || target.startsWith(source + sep)) throw new Error('Target cannot be inside installer source')
   if (!existsSync(target) || !lstatSync(target).isDirectory()) throw new Error(`Project directory does not exist: ${target}`)
   const planned = new Map(entrypoints(platforms))
+  for (const [path, content] of nativeEntrypoints(platforms, source)) {
+    if (planned.has(path)) throw new Error(`Duplicate generated entrypoint: ${path}`)
+    planned.set(path, content)
+  }
   for (const asset of ASSETS) {
     const sourcePath = join(source, asset)
     if (!existsSync(sourcePath)) throw new Error(`Missing distribution asset: ${asset}`)
