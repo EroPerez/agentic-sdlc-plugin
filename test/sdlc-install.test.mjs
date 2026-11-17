@@ -19,8 +19,12 @@ function fixture(fn) {
 
 test('all five host entrypoints are generated with durable lifecycle contract', () => {
   const entries = entrypoints(PLATFORMS)
-  assert.equal(entries.size, 5)
+  assert.equal(entries.size, 6)
+  const hook = JSON.parse(entries.get('.claude/settings.json'))
+  assert.equal(hook.hooks.PreToolUse.length, 2)
+  assert.match(hook.hooks.PreToolUse[0].hooks[0].command, /sdlc-guard\.mjs/)
   for (const [path, body] of entries) {
+    if (path.endsWith('/settings.json')) continue
     assert.match(body, /VERDICT: PASS\|FAIL/)
     assert.match(body, /human approval/)
     assert.match(body, /sdlc-state\.mjs/)
