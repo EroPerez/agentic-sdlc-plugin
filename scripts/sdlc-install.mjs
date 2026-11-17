@@ -86,11 +86,8 @@ function collectFiles(base, prefix = '') {
   return files
 }
 
-export function install({ target, platforms }, source = SOURCE) {
-  target = resolve(target)
+export function plannedFiles(platforms, source = SOURCE) {
   source = resolve(source)
-  if (target === source || target.startsWith(source + sep)) throw new Error('Target cannot be inside installer source')
-  if (!existsSync(target) || !lstatSync(target).isDirectory()) throw new Error(`Project directory does not exist: ${target}`)
   const planned = new Map(entrypoints(platforms))
   for (const [path, content] of nativeEntrypoints(platforms, source)) {
     if (planned.has(path)) throw new Error(`Duplicate generated entrypoint: ${path}`)
@@ -104,6 +101,15 @@ export function install({ target, platforms }, source = SOURCE) {
       planned.set(join(DEST, file), readFileSync(join(source, file)))
     }
   }
+  return planned
+}
+
+export function install({ target, platforms }, source = SOURCE) {
+  target = resolve(target)
+  source = resolve(source)
+  if (target === source || target.startsWith(source + sep)) throw new Error('Target cannot be inside installer source')
+  if (!existsSync(target) || !lstatSync(target).isDirectory()) throw new Error(`Project directory does not exist: ${target}`)
+  const planned = plannedFiles(platforms, source)
   // Preflight every destination before modifying anything: no collisions or symlink traversal.
   const changes = []
   for (const [path, content] of planned) {
