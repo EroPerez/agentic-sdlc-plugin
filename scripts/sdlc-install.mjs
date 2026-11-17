@@ -56,6 +56,15 @@ export function entrypoints(platforms) {
       `---\ndescription: Run or resume the seven-phase Agentic SDLC lifecycle\n---\n\n${shared}`)
     if (platform === 'claude') entries.set('.claude/commands/sdlc.md',
       `---\ndescription: Run or resume Agentic SDLC\nargument-hint: "[phase or change request]"\n---\n\n${shared}`)
+    if (platform === 'claude') {
+      const command = 'node "${CLAUDE_PROJECT_DIR}/.agentic-sdlc/scripts/sdlc-guard.mjs"'
+      entries.set('.claude/settings.json', JSON.stringify({
+        hooks: { PreToolUse: [
+          { matcher: 'Bash', hooks: [{ type: 'command', command, timeout: 10 }] },
+          { matcher: 'Edit|Write|MultiEdit|NotebookEdit', hooks: [{ type: 'command', command, timeout: 10 }] }
+        ] }
+      }, null, 2) + '\n')
+    }
     if (platform === 'cursor') entries.set('.cursor/rules/agentic-sdlc.mdc',
       `---\ndescription: Agentic SDLC seven-phase workflow\nglobs:\nalwaysApply: false\n---\n\n${shared}`)
   }
