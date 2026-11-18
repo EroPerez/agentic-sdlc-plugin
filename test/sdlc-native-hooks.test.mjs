@@ -92,3 +92,25 @@ test('installer and doctor include native policy files without modifying user da
     assert.equal(install({ target: root, platforms: ['codex', 'opencode', 'copilot', 'cursor'] }, ROOT).written, 0)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
+
+test('Codex apply_patch rejects metadata add, update, delete and move destinations', () => {
+  for (const patch of [
+    '*** Begin Patch\n*** Add File: docs/requirements/sdlc-metadata.yml\n+state: invalid\n*** End Patch',
+    '*** Begin Patch\n*** Update File: docs/requirements/sdlc-metadata.yml\n@@\n-old\n+new\n*** End Patch',
+    '*** Begin Patch\n*** Delete File: docs/requirements/sdlc-metadata.yml\n*** End Patch',
+    '*** Begin Patch\n*** Update File: docs/requirements/other.yml\n*** Move to: docs/requirements/sdlc-metadata.yml\n@@\n-old\n+new\n*** End Patch'
+  ]) {
+    const input = { tool_name: 'apply_patch', tool_input: { command: patch } }
+    assert.equal(evaluateHook('codex', input).decision?.decision, 'deny')
+  }
+})
+
+test('Codex apply_patch does not deny merely mentioning metadata in unrelated content', () => {
+  for (const patch of [
+    '*** Begin Patch\n*** Update File: README.md\n@@\n-old\n+docs/requirements/sdlc-metadata.yml\n*** End Patch',
+    '*** Begin Patch\n*** Update File: templates/sdlc-metadata.yml\n@@\n-old\n+new\n*** End Patch'
+  ]) {
+    const input = { tool_name: 'apply_patch', tool_input: { command: patch } }
+    assert.equal(evaluateHook('codex', input).decision, null)
+  }
+})
