@@ -24,10 +24,17 @@ export function normalizeHookInput(host, event) {
     const patch = args.command ?? args.patch ?? args.patch_text ?? args.input ?? ''
     return { tool_name: 'Patch', tool_input: { command: typeof patch === 'string' ? patch : '' } }
   }
-  if (['edit', 'write', 'create', 'multiedit', 'notebookedit', 'str_replace_editor', 'fileedit'].includes(tool))
+  if (['edit', 'write', 'create', 'multiedit', 'notebookedit', 'str_replace_editor', 'fileedit', 'delete'].includes(tool))
     return { tool_name: 'Edit', tool_input: {
       file_path: args.file_path ?? args.filePath ?? args.path ?? args.target_file ?? args.targetFile ?? args.notebook_path ?? ''
     } }
+  // Match writing-oriented MCP tools without treating read-only MCP file access as a write.
+  if (/(?:write|edit|patch|delete|move|rename|create)(?:_|$)/i.test(tool) &&
+      (args.file_path ?? args.filePath ?? args.path ?? args.target_file ?? args.targetFile)) {
+    return { tool_name: 'Edit', tool_input: {
+      file_path: args.file_path ?? args.filePath ?? args.path ?? args.target_file ?? args.targetFile
+    } }
+  }
   return { tool_name: String(rawName), tool_input: args }
 }
 
