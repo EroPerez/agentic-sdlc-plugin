@@ -8,6 +8,19 @@ Release → Operate) with a roster of **35 specialized subagents**.
 📖 **[How it works — visual guide](https://orchestratedbyalex.github.io/agentic-sdlc-plugin/)** —
 the seven phases, install, and model routing on one page.
 
+## Multi-agent compatibility (Codex, OpenCode, Copilot, Claude Code, Cursor)
+
+A stacked PR series adds a portable installer, project-level native profiles for all 35 SDLC roles on five supported coding agents, an installation doctor, and a detached-worktree validation runner. These changes are not in the original Claude Code marketplace release until merged.
+
+From the compatible branch, run:
+
+```bash
+node scripts/sdlc-install.mjs --target /absolute/path/to/project
+node scripts/sdlc-doctor.mjs --target /absolute/path/to/project
+```
+
+See [full compatibility and release validation](docs/full-agent-compatibility.md) and [stacked rollout](docs/stacked-rollout.md). Generating agent profiles is not evidence that a client enforces all permissions; check the host-specific security notes before production adoption.
+
 ## Requirements
 
 - **Claude Code** (CLI, desktop, web, or IDE extension).
