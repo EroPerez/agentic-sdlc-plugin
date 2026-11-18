@@ -1,71 +1,61 @@
-# Complete host-role distribution and validation
+# Cross-agent role distribution and real validation
 
-This change builds on the stacked Agentic SDLC pull requests. It **does not replace the original seven playbooks or 35 role definitions**. The source of truth remains `agents/sdlc-*.md`.
+The repository distributes one generic SDLC engine and generates **35 native role profiles per selected coding host** from the authoritative files under `agents/`. The supported hosts are Codex, OpenCode, Copilot, Claude Code and Cursor (175 generated role profiles for an all-host install). In addition, each host has its native entrypoint and guard hook.
 
-## Installation
-
-From the repository checkout containing this branch, run:
+## Install
 
 ```bash
-node scripts/sdlc-install.mjs --target /absolute/path/to/project --platforms codex,opencode,copilot,claude,cursor
-node scripts/sdlc-doctor.mjs --target /absolute/path/to/project --platforms codex,opencode,copilot,claude,cursor
+node scripts/sdlc-install.mjs --target /absolute/project --platforms codex,opencode,copilot,claude,cursor
+node scripts/sdlc-doctor.mjs --target /absolute/project --platforms codex,opencode,copilot,claude,cursor
 ```
 
-For each host, this generates **35 role-specific profiles** in addition to the existing implementer/reviewer profiles and the host's SDLC entrypoint. Five hosts yield 175 generated role profiles. Each generated profile points to the vendored original brief; the entire SDLC engine is copied into `.agentic-sdlc/`.
+An intact distribution yields `ready: true`. This proves file integrity, **not** that each client has loaded or enforced the generated declarations.
 
-These profiles are host-specific *declarations*, not proof the models ran correctly. OpenCode roles use V2 action/resource/effect permissions; Cursor reviewers use `readonly: true`; Codex reviewer profiles request `sandbox_mode = "read-only"`; Copilot and Claude reviewers restrict their tool lists. **Platform versions, inherited permission rules and alternate tooling can weaken these policies.** Inspect actual agent permissions before granting external or publication credentials.
+## Permission and delegation boundaries
 
-For Claude Code, installation also generates `.claude/settings.json` with `PreToolUse` hooks invoking the vendored `sdlc-guard.mjs`. If that file already exists with different contents, the installer refuses to replace it. **Merge the hook into existing settings manually** and verify it activates with the actual Claude host. The guard's shell parsing is deliberately approximate and is defense-in-depth, not an OS security boundary.
+- **Claude Code:** project `.claude/settings.json` contains `PreToolUse` guards; the original plugin can also run its own hook. Verify which install is active.
+- **Codex:** uses native agent role definitions and `.codex/hooks.json`; reviewer instructions do not override the parent's OS sandbox. Where `ask` is unsupported, the publication hook denies.
+- **OpenCode:** role definitions and project `tool.execute.before` plugin; the policy blocks sensitive operations for later manual authorization.
+- **Copilot:** native agent profiles, prompt files and repository pre-tool hooks; cloud/interactive approval support differs. Do not rely only on hooks for release security.
+- **Cursor:** generated agents/rules and project hooks; reviewer profiles request read-only behavior, but actual tool permissions require host verification.
 
-## Independent verification of committed code
+The runtime contract `scripts/sdlc-runtime.mjs` checks capabilities, dispatch plans, independent reviewer identity and required evidence; it does not run the external agents itself. Use branch protection, least-privilege credentials, independent checks and real host E2E testing.
 
-The validator runs checks from a **detached temporary Git worktree** at a specific commit SHA. This avoids modifying the current checkout but it is **not an OS sandbox**: arbitrary check commands may access network, host environment variables and other files using the caller's privileges. Only use trusted check configurations and run with least-privilege credentials; ideally execute inside a network-restricted container.
+## Detached worktree validation
 
-Create a JSON file outside the repository, for example `/tmp/sdlc-checks.json`:
+A committed version of a target repository can be checked with a trusted JSON checks file. Example file `/tmp/sdlc-checks.json`:
 
 ```json
 {
   "schemaVersion": 1,
-  "checks": [
-    {
-      "name": "unit",
-      "command": "node",
-      "args": ["--test"],
-      "timeoutMs": 120000,
-      "requireTests": true
-    }
-  ]
+  "checks": [{
+    "name": "unit",
+    "command": "node",
+    "args": ["--test"],
+    "timeoutMs": 120000,
+    "requireTests": true
+  }]
 }
 ```
 
-Then, explicitly authorize local command execution:
+Run:
 
 ```bash
 node scripts/sdlc-review-runner.mjs \
-  --repository /absolute/path/to/project \
+  --repository /absolute/project \
   --config /tmp/sdlc-checks.json \
-  --ref HEAD \
-  --allow-exec
+  --ref HEAD --allow-exec \
+  --logs-dir /tmp/sdlc-validation-logs
 ```
 
-The command exits 0 for PASS, 2 for failed checks, 1 for invalid inputs or environment failures. It records the commit SHA, command and argv, exit status, duration, output SHA-256 digest and detected Node TAP test count, if present. A check marked `requireTests` fails when TAP counts zero or no TAP count is found. For non-Node frameworks, define appropriate checks without `requireTests` and verify collected test counts through their native reporters.
+The runner requires a clean working tree, executes commands in a detached temporary Git worktree and collects real exit status, test counts (TAP and spec for Node), SHA-256 output digest and optional **verbatim output logs**. The logs directory must be outside the repository and should be unique per run. `requireTests: true` rejects zero or unrecognized Node test counts. Do not use that Node-specific requirement for other frameworks without an equivalent detector.
 
-No shell interpolation is used to invoke checks, but binaries can still perform arbitrary side effects; review the JSON configuration before setting `--allow-exec`. The script refuses dirty source trees, requires a full commit SHA or HEAD, and cleans up detached worktrees in a `finally` block. Only committed files are evaluated. Hashes are **not substitutes** for verbatim test logs required by some phase gates; save those logs separately in a controlled CI system.
+**A Git worktree is not an OS sandbox:** configured binaries still have the invoking user's permissions and network access. Run untrusted workloads only in restricted environments; the explicit `--allow-exec` flag does not provide isolation.
 
-## Review and release gates
+## Upgrade and release certification
 
-1. Run `node --test` in a clean checkout with Node 18, 20 and 22.
-2. Install all five hosts in a disposable project and run `sdlc-doctor.mjs`.
-3. Verify the 35 native roles appear in each supported client version, and confirm the reviewer cannot modify code using a disposable test repository.
-4. Execute one seven-phase scenario per host, with failing and passing gates, deterministic resume, three planned human checkpoints and publication attempts.
-5. Protect GitHub branches and release environments; do not rely on prompts or heuristic shell hooks alone.
-6. Confirm AGPL-3.0-or-later obligations for distributed modifications.
+Use `scripts/sdlc-upgrade.mjs` with a matching previous source checkout to preview and apply conservative changes. See [upgrade and migration](upgrade.md). Direct `sdlc-install.mjs` still refuses changed files, by design.
 
-**Operational boundary:** this PR adds native role declarations and a real independent command-execution mechanism. It does **not** provide proof of end-to-end execution on all five external hosts, complete security parity, or native model routing parity. Do not mark the integration production-ready until external host checks and CI pass.
+For a release, obtain **real host E2E evidence** of role discovery, all seven phases, gate failure, state resume, enforced independent reviewer write denial, human checkpoints and publication permission. The release certification command verifies evidence files, digests and commit provenance but cannot certify the contents' truthfulness; independent human review is essential. See [certification criteria](certification.md).
 
-Platform documentation:
-- https://learn.chatgpt.com/docs/agent-configuration/subagents
-- https://opencode.ai/docs/agents/
-- https://docs.github.com/en/copilot/reference/custom-agents-configuration
-- https://cursor.com/docs/subagents
-- https://claude.com/resources/articles/how-to-configure-hooks
+Run `node --test` (Node 18/20/22 in CI) and inspect the host-specific guard behavior. **Production parity is not claimed** solely from generated profiles or unit tests.
