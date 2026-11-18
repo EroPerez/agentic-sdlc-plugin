@@ -12,7 +12,7 @@ export function hookEntrypoints(platforms) {
   if (platforms.includes('copilot')) {
     files.set('.github/hooks/agentic-sdlc.json', JSON.stringify({
       version: 1,
-      hooks: { preToolUse: [{ type: 'command', bash: 'node ' + bridge + ' copilot', timeoutSec: 10 }] }
+      hooks: { preToolUse: [{ type: 'command', command: 'node ' + bridge + ' copilot', timeoutSec: 10 }] }
     }, null, 2) + '\n')
   }
   if (platforms.includes('cursor')) {
