@@ -129,10 +129,15 @@ export function decide(input) {
     return checkBashMetadataWrite(toolInput.command) ?? checkBashPublish(toolInput.command)
   }
   if (tool === 'Patch' && typeof toolInput.command === 'string') {
-    const patch = toolInput.command
-    // A patch can modify several paths; refuse any direct metadata write.
-    if (/\\*\\*\\* (?:Add|Update|Delete|Move to) File: [^\\n]*sdlc-metadata\\.ya?ml/m.test(patch) ||
-        /\\*\\*\\* (?:Update|Add|Delete) File:[^\\n]*\\n[^]*?\\*\\*\\* Move to: [^\\n]*sdlc-metadata\\.ya?ml/m.test(patch)) {
+    // apply_patch describes edits in file header lines; inspect each modified
+    // path instead of searching arbitrary patch contents or double-escaped regex.
+    const header = /^\*\*\* (?:Add|Update|Delete|Move to) File:\s*(.+)$/gm
+    const moved = /^\*\*\* Move to:\s*(.+)$/gm
+    const paths = [
+      ...toolInput.command.matchAll(header),
+      ...toolInput.command.matchAll(moved)
+    ]
+    if (paths.some(match => isMeta(match[1].trim()))) {
       return { decision: 'deny', reason: denyReason('Patch of sdlc-metadata.yml') }
     }
     return null
