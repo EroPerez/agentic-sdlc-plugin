@@ -1,163 +1,393 @@
-# Agentic SDLC — Claude Code Plugin
+# Agentic SDLC — Complete user guide
 
-A standards-anchored, agent-driven Software Development Lifecycle for Claude Code.
-Run one command — `/agentic-sdlc:sdlc` (short: `/sdlc`) — and the wizard detects your
-project state and drives seven phases (Prepare → Define → Design → Develop → Verify →
-Release → Operate) with a roster of **35 specialized subagents**.
+Agentic SDLC is a **seven-phase software development lifecycle** for Claude Code, OpenAI Codex, OpenCode, GitHub Copilot and Cursor. It combines 35 specialized agent roles, reusable playbooks, deterministic project state, validation gates and human approval checkpoints.
 
-📖 **[How it works — visual guide](https://orchestratedbyalex.github.io/agentic-sdlc-plugin/)** —
-the seven phases, install, and model routing on one page.
+**Important:** generating host-specific agent files is not proof that a host enforces permissions or completes independent review. Always verify behavior in your installed client. The original Claude Code plugin and the newer project-local portable integration use different installation methods.
 
-## Multi-agent compatibility (Codex, OpenCode, Copilot, Claude Code, Cursor)
+## Contents
 
-A stacked PR series adds a portable installer, project-level native profiles for all 35 SDLC roles on five supported coding agents, an installation doctor, and a detached-worktree validation runner. These changes are not in the original Claude Code marketplace release until merged.
+1. [Prerequisites](#prerequisites)
+2. [Choose an installation method](#choose-an-installation-method)
+3. [Portable installation for five agents](#portable-installation-for-five-agents)
+4. [Native Claude Code plugin](#native-claude-code-plugin)
+5. [First run and example workflow](#first-run-and-example-workflow)
+6. [The seven phases](#the-seven-phases)
+7. [Resume and operate project state](#resume-and-operate-project-state)
+8. [Command reference](#command-reference)
+9. [Approvals and native hooks](#approvals-and-native-hooks)
+10. [Installation verification](#installation-verification)
+11. [Independent test evidence](#independent-test-evidence)
+12. [Updates and safe removal](#updates-and-safe-removal)
+13. [Run this project's tests](#run-this-projects-tests)
+14. [Troubleshooting](#troubleshooting)
+15. [Outstanding limitations and references](#outstanding-limitations-and-references)
 
-From the compatible branch, run:
+## Prerequisites
 
-```bash
-node scripts/sdlc-install.mjs --target /absolute/path/to/project
-node scripts/sdlc-doctor.mjs --target /absolute/path/to/project
-```
+- **Node.js 18 or later** (Node 20/22 are also in the CI matrix).
+- **Git** and a clone of this repository for portable installation.
+- An existing target project directory and at least one supported coding agent.
+- Human control over publishing, CI and release credentials.
 
-See [full compatibility and release validation](docs/full-agent-compatibility.md) and [stacked rollout](docs/stacked-rollout.md). Generating agent profiles is not evidence that a client enforces all permissions; check the host-specific security notes before production adoption.
+Check versions:
 
-## Cross-agent certification (stacked branch)
+~~~bash
+node --version
+git --version
+~~~
 
-The portable adapter series now includes a versioned runtime contract, fail-closed gate evidence checks, explicit human approval records, and a five-client E2E certification manifest. Native role declarations alone are **not** runtime certification.
+This repository uses ESM JavaScript (.mjs) and the built-in Node test runner. **Do not run npm install or npm test** to test this repository; there is no root package.json. Use **node --test** instead.
 
-Run `node --test` and the installer/doctor smoke checks. Before publication, collect real client evidence and run `node scripts/sdlc-certify.mjs --input <attestations.json> --commit <sha> --evidence-root <logs-dir>`. See [certification and release criteria](docs/certification.md). Without verified external evidence, the release remains unapproved.
+## Choose an installation method
 
-## Native safety hooks for Codex, OpenCode, Copilot and Cursor
+| Method | Use with | Installation destination | Start command |
+|---|---|---|---|
+| Portable project installation | Codex, OpenCode, Copilot, Claude Code, Cursor | Files in the **target project**; shared engine in .agentic-sdlc/ | Invoke installed skill, command or rule |
+| Native Claude Code plugin | Claude Code | Loaded as a Claude plugin, without copying the engine into each project | /agentic-sdlc:sdlc |
 
-The agent-independent installer now registers native hooks that enforce the original Claude Code SDLC guard rules: protect `sdlc-metadata.yml` from direct edits and gate publication/history commands. Hosts without an enforceable approval prompt block sensitive operations and require a separate manual authorization path. See [native guard hooks](docs/native-guard-hooks.md) for events, test commands, host-specific enforcement limits and installation conflicts.
+Choose **one** method for Claude Code in a given project, or review and reconcile duplicate hooks and instructions. The upstream Claude marketplace release may not contain the same portable-agent changes as this repository.
 
-## Requirements
+## Portable installation for five agents
 
-- **Claude Code** (CLI, desktop, web, or IDE extension).
-- **Node.js 18+** — the plugin's only executable (`scripts/sdlc-state.mjs`) is zero-dependency
-  ESM and uses the built-in `node:test` runner. No `npm install` step.
+### Step 1 — Clone the source
 
-## Install (from the marketplace)
+~~~bash
+git clone https://github.com/EroPerez/agentic-sdlc-plugin.git
+cd agentic-sdlc-plugin
+~~~
 
-```text
-# inside Claude Code:
+Run the following installer and doctor commands from **the cloned Agentic SDLC repository**. Substitute a real, existing absolute directory for the target project. The target cannot be inside the installer source checkout.
+
+### Step 2 — Install
+
+All five hosts:
+
+~~~bash
+node scripts/sdlc-install.mjs \
+  --target /absolute/path/to/my-project \
+  --platforms codex,opencode,copilot,claude,cursor
+~~~
+
+Only Codex, for example:
+
+~~~bash
+node scripts/sdlc-install.mjs \
+  --target /absolute/path/to/my-project \
+  --platforms codex
+~~~
+
+Omit the --platforms option to install for all five by default.
+
+The target receives:
+
+- **.agentic-sdlc/** — the shared lifecycle command, 35 role briefs, seven phase playbooks, templates, deterministic state CLI, guard, validator and other supporting scripts.
+- **Native role definitions** — generated for each chosen agent, including the 35 SDLC roles and the host's own entrypoint.
+- **Host-native hooks** — where supported, guarding direct metadata edits and publication commands.
+
+The installer preflights all destinations, refuses symbolic-link traversal and does **not** overwrite an existing file with different content. Running it again against an identical installation is safe.
+
+### Step 3 — Check installation
+
+~~~bash
+node scripts/sdlc-doctor.mjs \
+  --target /absolute/path/to/my-project \
+  --platforms codex,opencode,copilot,claude,cursor
+~~~
+
+The doctor reports **ready: true** when all expected files match. Use precisely the same host list as installation. It verifies file integrity, not agent execution.
+
+### Step 4 — Start the workflow in your coding agent
+
+| Agent | Installed entrypoint | Invocation |
+|---|---|---|
+| **OpenAI Codex** | .agents/skills/agentic-sdlc/SKILL.md | Open target project; explicitly invoke the agentic-sdlc skill |
+| **OpenCode** | .opencode/commands/sdlc.md | Open target project; enter /sdlc |
+| **GitHub Copilot** | .github/prompts/sdlc.prompt.md | Use the /sdlc prompt in a Copilot client supporting repository prompts |
+| **Claude Code (portable)** | .claude/commands/sdlc.md | Open target project; enter /sdlc |
+| **Cursor** | .cursor/rules/agentic-sdlc.mdc | Explicitly attach/apply the agentic-sdlc rule and ask it to start |
+
+**Reload or restart** the agent after installing. Cursor's rule is opt-in, not always active. Skills, custom commands and permissions vary by client version. If slash commands are not recognized, explicitly instruct the agent to read **.agentic-sdlc/commands/sdlc.md** and run the state detector first.
+
+## Native Claude Code plugin
+
+For the original upstream marketplace plugin, enter inside Claude Code:
+
+~~~text
 /plugin marketplace add orchestratedbyalex/agentic-sdlc-plugin
 /plugin install agentic-sdlc@agentic-sdlc-marketplace
 /agentic-sdlc:sdlc
-```
+~~~
 
-## Install (local development)
+To use your current clone locally instead, launch Claude with the plugin directory:
 
-```bash
+~~~bash
 claude --plugin-dir /ABSOLUTE/PATH/TO/agentic-sdlc-plugin
-# inside Claude Code:
+~~~
+
+Then inside Claude Code:
+
+~~~text
 /reload-plugins
 /agentic-sdlc:sdlc
-```
+~~~
 
-## Quick start
+The original plugin hooks use **hooks/hooks.json**. The project-local Claude adapter instead generates **.claude/settings.json**. Review potential duplicate or conflicting hook configurations if you mix both modes.
 
-Run `/sdlc` in any repository. The wizard:
+## First run and example workflow
 
-1. **Detects state** — `greenfield` (empty folder), `existing` (code, no SDLC metadata), or
-   `resume` (metadata present) — and prints a seven-phase status board.
-2. **Routes you** — scaffolds a greenfield skeleton, sets up an existing repo, or resumes
-   exactly where you left off (down to the specific agent).
-3. **Drives each phase** by dispatching its subagents (in parallel where independent), runs a
-   validation **gate** after each group, and routes failures back to the responsible author.
-4. **Records evidence** in *your* repo — requirements under `docs/requirements/`, design under
-   `docs/design/`, operations under `docs/operate/`, and all state in
-   `docs/requirements/sdlc-metadata.yml`.
+1. Open the **target project** in a supported agent and invoke the installed SDLC entrypoint.
+2. The orchestrator calls the state detector. It distinguishes **greenfield** (new/empty project), **existing** (code without lifecycle state) and **resume** (existing lifecycle metadata).
+3. Review the seven-phase status board and confirm the recommended action.
+4. For **greenfield**, supply purpose, users, language/stack and features; the wizard initializes lifecycle metadata and a minimal project skeleton.
+5. For **existing**, supply or confirm a project name and version; the wizard initializes lifecycle metadata without replacing existing source code.
+6. Select a model routing profile when offered: **balanced** (default), **quality**, or **economy**. The profile is saved in state. Native model tier behavior is host-dependent.
+7. Have the agent work through playbook groups. Inspect requirements, design, code and real check results; approve human checkpoints explicitly.
+8. On interruption, invoke SDLC again to resume from the saved phase, agent, plan and gate state.
 
-State is deterministic and resumable: every status change goes through `sdlc-state.mjs`, never
-an ad-hoc edit, so you can stop and resume any time — including mid-loop: gate strike counts,
-the Verify cycle, the active implementation plan, and a full gate-verdict log persist in the
-metadata, so an interruption never resets a review loop's bounds. Route-backs are transitions
-too: when Verify demands rework (or Release uncovers a Verify miss), the earlier phase is
-deterministically **reopened** — only the responsible agents reset, and resume lands on the
-rework, not on the phase that sent it back. Completing a phase records an **evidence
-attestation** citing the gate verdict that proved it.
+From the **target project root**, you can inspect state yourself:
 
-## Model routing
+~~~bash
+cd /absolute/path/to/my-project
+node .agentic-sdlc/scripts/sdlc-state.mjs
+~~~
 
-Each subagent runs under a model **profile**, so you can trade cost against wall-clock without
-touching the gates. Switch any time (persisted deterministically in `sdlc-metadata.yml`):
+The detector returns structured JSON including mode, phase board, next agent, setup completion, model profile and saved retry/gate state.
 
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/sdlc-state.mjs" config --model-profile <quality|balanced|economy>
-```
-
-- **quality** — every agent runs on the session model. Most thorough, most expensive.
-- **balanced** (default) — mechanical agents (build/lint analysis, the regression run, the
-  dependency/telemetry monitors) drop to a small fast model and analysis/authoring agents to a
-  mid model. Cheaper and faster, same gates.
-- **economy** — pushes the non-critical tiers to the smallest models for the lowest cost.
-
-Whatever the profile, the **full tier always inherits the session model** — every reviewer and
-validator, the planner, the clarifier, the code/test/implementer authors, and the feedback-loop.
-Model routing never downgrades a gate.
+In **native Claude plugin mode**, use the state script from the plugin installation rather than the .agentic-sdlc directory, which may not exist in the target project.
 
 ## The seven phases
 
-| Phase | Purpose | Anchored in |
-|-------|---------|-------------|
-| **Prepare** | Map the project; produce a CLAUDE.md the agents can rely on | ISO/IEC/IEEE 12207:2026 |
-| **Define** | Functional / non-functional requirements + user stories, gated | IEEE 12207:2026 |
-| **Design** | Architecture, component specs, ADRs, STRIDE-lite threat model | IEEE 1016, Microsoft SDL, Nygard ADRs |
-| **Develop** | Plan → implement + test (proportionate to change tier) → review | Microsoft SDL |
-| **Verify** | Coverage, independent review, real production build, regression | IEEE 1012, ISO/IEC 25010 |
-| **Release** | Changelog, version bump, staged commit + tag + rollback plan (human-gated) | ITIL 4 |
-| **Operate** | Triage, dependency/telemetry monitoring, post-release health, feedback + accreted lessons into the next cycle | ITIL 4, ISO/IEC 27001, DORA |
+| Phase | Purpose | Typical artifacts / approvals |
+|---|---|---|
+| **1 — Prepare** | Explore project and record engineering context | Instructions such as CLAUDE.md |
+| **2 — Define** | Functional and nonfunctional requirements; user stories | docs/requirements/; **human requirements sign-off** |
+| **3 — Design** | Architecture, components, ADRs and security decisions | docs/design/; **human design/ADR sign-off** |
+| **4 — Develop** | Plan, implement, test, review | Implementation plans, code changes and test evidence |
+| **5 — Verify** | Review coverage, build and regression evidence | Independent gates ending in VERDICT: PASS or VERDICT: FAIL |
+| **6 — Release** | Changelog, versioning, rollback and publication preparation | **Human approval before commit/tag/push/release/publish** |
+| **7 — Operate** | Triage, monitoring, feedback and cycle planning | Operational notes; **human next-cycle go/defer/override** |
 
-## How it's built (the two-zone model)
+**Setup gating:** Prepare, Define and Design must be completed before entering Develop/Verify/Release/Operate. Gates are bounded; failures route work back to the responsible author and may escalate to a human. A reviewer cannot certify its own authored changes as independent work.
 
-The plugin carries the **process** ("how"); your target repository receives the **evidence**
-("what" — requirements, design docs, `sdlc-metadata.yml`). That separation is load-bearing:
-the plugin stays generic, your repo accumulates the lifecycle record.
+## Resume and operate project state
 
-- The `/sdlc` wizard (`commands/sdlc.md`) — the orchestrator entry point.
-- **35 subagents** (`agents/`), dispatched via the Task tool, honoring parallelism and a strict
-  **reviewer ≠ author** rule (reviewers are read-only).
-- **7 machine-readable phase playbooks** (`phases/`) — groups, modes, gates, post-phase state.
-- **Deterministic, tested state** (`scripts/sdlc-state.mjs`) — the single source of metadata truth.
-- **Deterministic guardrails** (`hooks/hooks.json` → `scripts/sdlc-guard.mjs`) — a PreToolUse
-  hook turns publish commands (`git commit`/`tag`/`push`, `gh release`, `npm publish`) into an
-  explicit permission **ask** (the human approving the prompt *is* the gate) and **denies**
-  direct edits of `sdlc-metadata.yml`, pointing back at the state script. Hooks fire
-  session-wide wherever the plugin is enabled — the ask-not-deny design keeps that safe.
-- **Human checkpoints at exactly three altitudes** — Define completes only after your
-  requirements sign-off; Design completes only after you decide the ADR trade-offs
-  (new-decision ADRs enter `proposed`; your approval accepts them); and a new Operate cycle
-  starts only on your explicit go (go / defer / override) — never on an agent's say-so.
-- Artifact templates (`templates/`) and two skills (`sdlc-conventions`, `sdlc-feature-intake`).
-- **Configurable model routing** (`quality` / `balanced` / `economy`) that never downgrades the
-  judgment-bearing agents or the gates.
-- **Agent evals** (`evals/`) — the gate agents are themselves tested: labelled golden fixtures
-  (clean ⇒ PASS, tests-green-but-build-broken ⇒ FAIL, no-build-step ⇒ honest PASS, a hardcoded
-  API key arriving as the uncommitted diff ⇒ security-blocker FAIL, a test command that exits 0
-  collecting zero tests ⇒ FAIL) run headless through the real plugin and asserted on the
-  machine-parsable `VERDICT:` line. Billed and opt-in (`SDLC_EVALS=1 node evals/run.mjs`),
-  never part of `node --test`.
+The target project owns its lifecycle evidence, primarily:
 
-## Test
+~~~text
+docs/requirements/sdlc-metadata.yml
+~~~
 
-```bash
-node --test          # 161 tests, all green (state logic + hook guard + evals lib + plugin structure)
-```
+**Never edit this YAML file directly**. All lifecycle transitions are made with the deterministic state CLI or orchestrator commands that call it.
 
-The model-free suite above always runs clean on CI and contributor machines. The billed agent
-evals are separate and explicit — see [evals/README.md](evals/README.md).
+To resume:
 
-## Contributing
+~~~bash
+cd /absolute/path/to/my-project
+node .agentic-sdlc/scripts/sdlc-state.mjs
+~~~
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the design invariants, agent conventions, and the
-version-bump policy. Contributor guidance for working *in* this repo lives in
-[CLAUDE.md](CLAUDE.md).
+Reopen the agent and invoke SDLC. The state persists phase/agent progress, gate verdicts, bounded strike counts, clarifier rounds, active implementation plan, verification cycle and route-backs across sessions. If metadata is invalid, use the wizard's repair/reinitialize guidance rather than inventing statuses.
 
-## License
+## Command reference
 
-[GNU AGPL-3.0-or-later](LICENSE.md) © 2026 [@orchestratedbyalex](https://github.com/orchestratedbyalex).
+Run from the **target project root** after portable installation. These are examples of the CLI invoked by the orchestrator; do not call completion/gate commands without actual evidence and required human sign-offs.
 
-Free to use, run, and modify — including inside companies. If you distribute it or a modified
-version (or run a modified version as a network service), you must release your source under the
-same AGPL license. You can build on it; you can't close it up and resell it as proprietary.
+~~~bash
+# Inspect lifecycle status, no arguments
+node .agentic-sdlc/scripts/sdlc-state.mjs
+
+# Initialize a project without lifecycle metadata
+node .agentic-sdlc/scripts/sdlc-state.mjs init \
+  --name "My Project" --version "0.1.0" --mode existing
+
+# Alternative for a genuinely new/empty project
+node .agentic-sdlc/scripts/sdlc-state.mjs init \
+  --name "New Project" --version "0.1.0" --mode greenfield
+
+# Configure the model routing profile
+node .agentic-sdlc/scripts/sdlc-state.mjs config --model-profile balanced
+
+# Register and select an implementation plan
+node .agentic-sdlc/scripts/sdlc-state.mjs plan-add --id PLAN-001
+node .agentic-sdlc/scripts/sdlc-state.mjs plan-active --id PLAN-001
+
+# Record an actual gate result
+node .agentic-sdlc/scripts/sdlc-state.mjs gate-log \
+  --phase develop --gate sdlc-develop-code-reviewer --verdict PASS
+
+# Complete a phase only after validating its evidence and approvals
+node .agentic-sdlc/scripts/sdlc-state.mjs complete \
+  --phase prepare --evidence "gate VERDICT: PASS; reviewed artifacts"
+~~~
+
+Additional state commands:
+
+| Command | What it records |
+|---|---|
+| **brief** | Project purpose, stack, users and key features |
+| **counts** | Functional, nonfunctional and user-story totals |
+| **complete --phase ... --agent ...** | Agent-level checkpoint |
+| **clarifier-round --author ...** | Count clarification attempts |
+| **loop-reset --phase ...** | Apply authorized escalation recovery |
+| **reopen --phase ... --agent ...** | Reopen an earlier phase for targeted rework |
+| **cycle --assessment ... --next-cycle ...** | Operate assessment and next-cycle transition |
+
+Refer to [the wizard contract](commands/sdlc.md), [setup instructions](references/setup.md), [human checkpoints](references/checkpoints.md) and [phase playbooks](phases/) for exact preconditions and full syntax. Record real gate outcomes: the CLI cannot substitute for an independent review.
+
+## Approvals and native hooks
+
+A single shared policy, **scripts/sdlc-guard.mjs**, controls recognized operations:
+
+- Direct modifications of **sdlc-metadata.yml** (including recognized file-edit tools, shell writes and apply_patch) are blocked. Use the state CLI.
+- **git commit**, non-listing **git tag**, **git push**, modifying **gh release** commands and package publication need human authorization.
+
+| Host | Installed hook | Sensitive publication action |
+|---|---|---|
+| Claude Code | .claude/settings.json, or hooks/hooks.json in plugin mode | Ask for permission |
+| Codex | .codex/hooks.json | Deny; use a separately approved manual path |
+| OpenCode | .opencode/plugins/agentic-sdlc-policy.js | Block; manual path required |
+| Copilot | .github/hooks/agentic-sdlc.json | Ask where supported; cloud behavior differs |
+| Cursor | .cursor/hooks.json | Shell permission prompt where supported; file edits denied |
+
+The host must actually load/trust the hook. These rules are **defense in depth**, not a hardened OS sandbox: tool wrappers, APIs, unsupported event types or host permission semantics can bypass them. Enforce protected Git branches, least-privilege credentials and external approval records.
+
+See [native hooks and security limitations](docs/native-guard-hooks.md).
+
+## Installation verification
+
+From the tool source checkout:
+
+~~~bash
+node scripts/sdlc-doctor.mjs \
+  --target /absolute/path/to/my-project \
+  --platforms codex,opencode,copilot,claude,cursor
+~~~
+
+Expect **ready: true** with an empty issues list for an intact installation.
+
+You may also run a non-destructive hook protocol test:
+
+~~~bash
+printf '%s\n' '{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}' \
+  | node scripts/sdlc-hook-bridge.mjs codex
+~~~
+
+Expect a **deny** decision for Codex. This verifies the bridge's JSON output, **not** whether Codex has actually registered the hook. Test registration in a disposable repository through the real coding client.
+
+## Independent test evidence
+
+The validator executes trusted commands against a committed snapshot in a **disposable detached Git worktree**. That is *repository isolation only*, **not OS/process/network sandboxing**.
+
+Create a checks file outside your project, for example **/tmp/sdlc-checks.json**:
+
+~~~json
+{
+  "schemaVersion": 1,
+  "checks": [
+    {
+      "name": "unit",
+      "command": "node",
+      "args": ["--test"],
+      "timeoutMs": 120000,
+      "requireTests": true
+    }
+  ]
+}
+~~~
+
+From the tool repository:
+
+~~~bash
+node scripts/sdlc-review-runner.mjs \
+  --repository /absolute/path/to/my-project \
+  --config /tmp/sdlc-checks.json \
+  --ref HEAD --allow-exec \
+  --logs-dir /tmp/sdlc-verification-logs
+~~~
+
+The target checkout must be clean. The runner records commit SHA, command, exit status, duration, detected Node test count and output SHA-256. Supplying **--logs-dir** preserves verbatim output outside the target repository; use a fresh directory for repeated runs at the same SHA.
+
+**Only execute trusted checks.** Commands run with your effective host privileges and may access files, credentials and network. For other testing frameworks, configure appropriate commands; the Node-specific **requireTests** option should only be used when Node's test count can be detected.
+
+See [verification and certification](docs/certification.md).
+
+## Updates and safe removal
+
+The installer will **not force-overwrite** modified or older generated files. For upgrades:
+
+1. Back up the target repository and its configuration.
+2. Fetch the updated Agentic SDLC repository.
+3. Run the doctor to identify differences.
+4. Compare and manually merge any changed hook/profile files before reinstalling. Do not delete user-owned settings to bypass a collision.
+
+To uninstall, use the source checkout/version corresponding to the installed files and **preview** first:
+
+~~~bash
+node scripts/sdlc-uninstall.mjs \
+  --target /absolute/path/to/my-project \
+  --platforms codex,opencode,copilot,claude,cursor
+~~~
+
+If the report shows a safe removal plan:
+
+~~~bash
+node scripts/sdlc-uninstall.mjs \
+  --target /absolute/path/to/my-project \
+  --platforms codex,opencode,copilot,claude,cursor \
+  --apply
+~~~
+
+Uninstall removes **only unmodified generated files**, refuses unsafe paths and does not delete unrelated project files. Preserve and back up the project's own lifecycle documents under **docs/** separately.
+
+## Run this project's tests
+
+From the source repository:
+
+~~~bash
+node --test
+~~~
+
+There is no root package.json. Running **npm test** produces ENOENT and is not the supported test command. CI uses Node 18/20/22 and performs a portable install/doctor/uninstall smoke test.
+
+The number of tests changes as the project evolves, so this README does not hard-code a count. Inspect the actual runner's **pass** and **fail** totals.
+
+Optional **real Claude agent evaluations** may incur charges and require a configured Claude Code CLI:
+
+~~~bash
+node evals/run.mjs --list
+SDLC_EVALS=1 node evals/run.mjs
+~~~
+
+The agent evaluations are separate from the model-free unit suite. See [evals](evals/README.md) and [contributing](CONTRIBUTING.md).
+
+## Troubleshooting
+
+| Problem | Resolution |
+|---|---|
+| **npm ERR! ENOENT package.json** | Use **node --test**, not npm test. |
+| **Installer target missing** | Create the destination directory and use an absolute path. |
+| **Installer refuses overwrite** | Compare the existing generated/user configuration; merge explicitly. |
+| **Doctor reports ready: false** | Inspect missing/modified/unsafe file entries and compare source versions. |
+| **SDLC slash command is missing** | Restart the client, check supported entrypoints and invoke the skill/rule explicitly. Cursor's rule is opt-in. |
+| **A guarded command is denied** | Codex/OpenCode fail closed for sensitive actions; perform the operation only through a separately approved manual path. |
+| **Hook appears inactive** | Check host trust and hook loading in the real client; do not assume generated files are active. |
+| **A gate claims PASS but did not run tests** | Require actual command output and positive test discovery. Zero tests are not evidence of passing tests. |
+| **Resume fails on invalid metadata** | Use wizard repair/reinitialize guidance; avoid ad hoc YAML edits. |
+| **Uninstall refuses modified files** | Review and back up customizations; the remover protects differing content. |
+
+## Outstanding limitations and references
+
+**Current verification boundary:** the unit tests and file-integrity checker do not certify that all five external clients execute the complete lifecycle or enforce equivalent approval/read-only policies. Production certification requires real-client evidence for role discovery, seven-phase execution, failing gates, resume, independent reviewer write denial, human checkpoints and publication approvals. The [certification guide](docs/certification.md) defines the evidence format and release gate.
+
+Further reading:
+
+- [Portable adapter architecture](docs/agent-agnostic.md) (contains historical rollout notes).
+- [Native agent profiles and test runner](docs/full-agent-compatibility.md).
+- [Native hook registration and host limitations](docs/native-guard-hooks.md).
+- [Certification and release criteria](docs/certification.md).
+- [Lifecycle orchestration contract](commands/sdlc.md).
+- [Project diagrams](diagrams/README.md).
+
+## License and attribution
+
+[GNU AGPL-3.0-or-later](LICENSE.md). Original Claude plugin and marketplace credit: [@orchestratedbyalex](https://github.com/orchestratedbyalex). This repository also contains portable-agent integrations. Review the AGPL obligations when redistributing modifications or operating modified network services.
