@@ -11,7 +11,7 @@ function fixture(fn) {
   const target = join(root, 'project')
   mkdirSync(src); mkdirSync(target)
   for (const name of ['agents', 'commands', 'phases', 'references', 'skills', 'templates', 'scripts']) mkdirSync(join(src, name))
-  for (const name of ['agents/role.md', 'commands/sdlc.md', 'phases/phase.md', 'references/setup.md', 'skills/skill.md', 'templates/metadata.yml', 'scripts/sdlc-state.mjs', 'scripts/sdlc-guard.mjs', 'scripts/sdlc-review-runner.mjs', 'scripts/sdlc-runtime.mjs', 'scripts/sdlc-roles.mjs', 'scripts/sdlc-certify.mjs', 'scripts/sdlc-uninstall.mjs', 'scripts/sdlc-hook-bridge.mjs', 'scripts/sdlc-hook-entries.mjs']) {
+  for (const name of ['agents/role.md', 'commands/sdlc.md', 'phases/phase.md', 'references/setup.md', 'skills/skill.md', 'templates/metadata.yml', 'scripts/sdlc-state.mjs', 'scripts/sdlc-guard.mjs', 'scripts/sdlc-review-runner.mjs', 'scripts/sdlc-runtime.mjs', 'scripts/sdlc-roles.mjs', 'scripts/sdlc-certify.mjs', 'scripts/sdlc-uninstall.mjs', 'scripts/sdlc-upgrade.mjs', 'scripts/sdlc-hook-bridge.mjs', 'scripts/sdlc-hook-entries.mjs']) {
     writeFileSync(join(src, name), name === 'agents/role.md' ? '---\nname: role\ndescription: fixture role\ntools: Read\n---\nfixture role\n' : name)
   }
   try { fn({ root, src, target }) } finally { rmSync(root, { recursive: true, force: true }) }
