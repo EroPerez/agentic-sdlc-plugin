@@ -19,3 +19,10 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Run tests
         run: node --test
+      - name: Install and verify all host profiles
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/sdlc-smoke"
+          node scripts/sdlc-install.mjs --target "$RUNNER_TEMP/sdlc-smoke" --platforms codex,opencode,copilot,claude,cursor
+          node scripts/sdlc-doctor.mjs --target "$RUNNER_TEMP/sdlc-smoke" --platforms codex,opencode,copilot,claude,cursor
+          node scripts/sdlc-install.mjs --target "$RUNNER_TEMP/sdlc-smoke" --platforms codex,opencode,copilot,claude,cursor
