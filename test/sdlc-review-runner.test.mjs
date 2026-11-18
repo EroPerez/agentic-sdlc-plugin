@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { detectTestCount, parseChecks, validateCommit } from '../scripts/sdlc-review-runner.mjs'
+import { childProcessEnvironment, detectTestCount, parseChecks, validateCommit } from '../scripts/sdlc-review-runner.mjs'
 
 function fixture(fn) {
   const root = mkdtempSync(join(tmpdir(), 'sdlc-validation-test-'))
@@ -100,4 +100,31 @@ test('runner accepts a real Node TAP reporter with collected tests', () => fixtu
   assert.equal(result.verdict, 'PASS')
   assert.equal(result.checks[0].exitCode, 0)
   assert.equal(result.checks[0].testCount, 1)
+}))
+
+test('child environment removes inherited NODE_TEST_CONTEXT without mutating parent variables', () => {
+  const parent = { NODE_TEST_CONTEXT: 'child-v8', NODE_OPTIONS: '--no-warnings',
+    CUSTOM_TEST_VARIABLE: 'preserve' }
+  const env = childProcessEnvironment(parent)
+  assert.equal(env.NODE_TEST_CONTEXT, undefined)
+  assert.equal(env.NODE_OPTIONS, '--no-warnings')
+  assert.equal(env.CUSTOM_TEST_VARIABLE, 'preserve')
+  assert.equal(env.GIT_TERMINAL_PROMPT, '0')
+  assert.equal(parent.NODE_TEST_CONTEXT, 'child-v8')
+})
+
+test('detached runner executes nested Node tests despite an inherited test context', () => fixture(({ repository, config, configure }) => {
+  configure([{ name: 'nested', command: process.execPath,
+    args: ['--test', '--test-reporter=spec'], requireTests: true }])
+  const previous = process.env.NODE_TEST_CONTEXT
+  try {
+    process.env.NODE_TEST_CONTEXT = 'child-v8'
+    const report = validateCommit({ repository, config, allowExec: true })
+    assert.equal(report.verdict, 'PASS')
+    assert.equal(report.checks[0].exitCode, 0)
+    assert.equal(report.checks[0].testCount, 1)
+  } finally {
+    if (previous === undefined) delete process.env.NODE_TEST_CONTEXT
+    else process.env.NODE_TEST_CONTEXT = previous
+  }
 }))
