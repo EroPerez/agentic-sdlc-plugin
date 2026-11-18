@@ -128,6 +128,15 @@ export function decide(input) {
   if (tool === 'Bash' && typeof toolInput.command === 'string') {
     return checkBashMetadataWrite(toolInput.command) ?? checkBashPublish(toolInput.command)
   }
+  if (tool === 'Patch' && typeof toolInput.command === 'string') {
+    const patch = toolInput.command
+    // A patch can modify several paths; refuse any direct metadata write.
+    if (/\\*\\*\\* (?:Add|Update|Delete|Move to) File: [^\\n]*sdlc-metadata\\.ya?ml/m.test(patch) ||
+        /\\*\\*\\* (?:Update|Add|Delete) File:[^\\n]*\\n[^]*?\\*\\*\\* Move to: [^\\n]*sdlc-metadata\\.ya?ml/m.test(patch)) {
+      return { decision: 'deny', reason: denyReason('Patch of sdlc-metadata.yml') }
+    }
+    return null
+  }
   if (EDIT_TOOLS.has(tool)) return checkFileEdit(tool, toolInput)
   return null
 }

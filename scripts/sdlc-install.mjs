@@ -5,13 +5,15 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nativeEntrypoints } from './sdlc-hosts.mjs'
 import { generatedRoleEntrypoints } from './sdlc-roles.mjs'
+import { hookEntrypoints } from './sdlc-hook-entries.mjs'
 
 export const PLATFORMS = ['codex', 'opencode', 'copilot', 'claude', 'cursor']
 const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ASSETS = ['agents', 'commands', 'phases', 'references', 'scripts/sdlc-state.mjs',
   'scripts/sdlc-guard.mjs', 'scripts/sdlc-review-runner.mjs',
   'scripts/sdlc-runtime.mjs', 'scripts/sdlc-roles.mjs', 'scripts/sdlc-certify.mjs',
-  'scripts/sdlc-uninstall.mjs', 'skills', 'templates']
+  'scripts/sdlc-uninstall.mjs', 'scripts/sdlc-hook-bridge.mjs',
+  'scripts/sdlc-hook-entries.mjs', 'skills', 'templates']
 const DEST = '.agentic-sdlc'
 
 export function parseArgs(argv) {
@@ -41,7 +43,7 @@ This repository includes a vendored, agent-independent SDLC engine in \`.agentic
 4. Replace Claude Code's \`Task\` dispatch with the host's native subagent/delegation facility, if available. If not, execute role briefs sequentially in isolated steps, explicitly changing role context and recording evidence; do not claim parallelism or independent review when unavailable. A reviewer must not author or modify the material it reviews.
 5. Interpret \`\${CLAUDE_PLUGIN_ROOT}\` in the vendored instructions as \`.agentic-sdlc\`, \`$ARGUMENTS\` as the user's invocation text, and \`CLAUDE.md\` as the project's instruction file (also inspect \`AGENTS.md\` when present). Tool names are conceptual capabilities (read/search/execute/edit), not literal requirements.
 6. Preserve gates: parse \`VERDICT: PASS|FAIL\`; persist all gate outcomes and bounded retry counts with \`sdlc-state.mjs\`. Never invent tests, successful gate reports, or execution evidence. A role without a truly independent executor cannot certify its own independent review.
-7. Before commit, tag, push, release, publish, or modification of SDLC metadata, require explicit human approval. The Claude hook guard is NOT automatically available in other hosts. Treat this as a mandatory workflow policy, not a claim of technically enforced sandbox protection.
+7. Before commit, tag, push, release, or publish, require explicit human approval. Only the state script may modify SDLC metadata. Host-native project hooks implement guard equivalents for Codex, Copilot, Cursor, and OpenCode when loaded, but enforcement differs by client: for hosts that cannot request approval from a hook, gated actions are denied and must be performed manually. Host-level hook loading must be verified.
 8. Stop and request human authorization for Define and Design sign-off, and for an Operate cycle decision. Honor escalation and stop conditions described in the playbooks.
 
 Start by displaying the phase board and offering to initialize or resume. Do not skip setup gating.
@@ -106,6 +108,10 @@ export function plannedFiles(platforms, source = SOURCE) {
     planned.set(path, content)
   }
   for (const [path, content] of generatedRoleEntrypoints(platforms, source)) {
+    if (planned.has(path)) throw new Error(`Duplicate generated entrypoint: ${path}`)
+    planned.set(path, content)
+  }
+  for (const [path, content] of hookEntrypoints(platforms)) {
     if (planned.has(path)) throw new Error(`Duplicate generated entrypoint: ${path}`)
     planned.set(path, content)
   }
