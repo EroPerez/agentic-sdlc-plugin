@@ -21,6 +21,12 @@ node scripts/sdlc-doctor.mjs --target /absolute/path/to/project
 
 See [full compatibility and release validation](docs/full-agent-compatibility.md) and [stacked rollout](docs/stacked-rollout.md). Generating agent profiles is not evidence that a client enforces all permissions; check the host-specific security notes before production adoption.
 
+## Cross-agent certification (stacked branch)
+
+The portable adapter series now includes a versioned runtime contract, fail-closed gate evidence checks, explicit human approval records, and a five-client E2E certification manifest. Native role declarations alone are **not** runtime certification.
+
+Run `node --test` and the installer/doctor smoke checks. Before publication, collect real client evidence and run `node scripts/sdlc-certify.mjs --input <attestations.json> --commit <sha> --evidence-root <logs-dir>`. See [certification and release criteria](docs/certification.md). Without verified external evidence, the release remains unapproved.
+
 ## Requirements
 
 - **Claude Code** (CLI, desktop, web, or IDE extension).

@@ -39,7 +39,7 @@ function render(role, host) {
   const instruction = prompt(role)
   if (host === 'codex') return {
     path: `.codex/agents/${id}.toml`,
-    body: `name = ${quote(id)}\ndescription = ${description}\n${role.reviewer ? 'sandbox_mode = "read-only"\n' : ''}developer_instructions = ${quote(instruction)}\n`
+    body: `name = ${quote(id)}\ndescription = ${description}\ndeveloper_instructions = ${quote(instruction)}\n`
   }
   if (host === 'opencode') {
     const rules = role.reviewer

@@ -9,7 +9,9 @@ import { generatedRoleEntrypoints } from './sdlc-roles.mjs'
 export const PLATFORMS = ['codex', 'opencode', 'copilot', 'claude', 'cursor']
 const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ASSETS = ['agents', 'commands', 'phases', 'references', 'scripts/sdlc-state.mjs',
-  'scripts/sdlc-guard.mjs', 'scripts/sdlc-review-runner.mjs', 'skills', 'templates']
+  'scripts/sdlc-guard.mjs', 'scripts/sdlc-review-runner.mjs',
+  'scripts/sdlc-runtime.mjs', 'scripts/sdlc-roles.mjs', 'scripts/sdlc-certify.mjs',
+  'scripts/sdlc-uninstall.mjs', 'skills', 'templates']
 const DEST = '.agentic-sdlc'
 
 export function parseArgs(argv) {
