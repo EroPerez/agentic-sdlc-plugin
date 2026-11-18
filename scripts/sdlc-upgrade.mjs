@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Deterministic safe upgrade between two checked-out distribution versions.
 // Neither source directory nor project-owned lifecycle evidence is mutated.
-import { existsSync, lstatSync, readFileSync, mkdirSync, mkdtempSync, writeFileSync, unlinkSync, rmSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, mkdirSync, mkdtempSync, writeFileSync, unlinkSync, rmSync, renameSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname, relative, resolve, sep, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { parseArgs, plannedFiles } from './sdlc-install.mjs'
 
 const NEW_SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -20,8 +20,10 @@ function safePath(root, relativeFile) {
   let current = root
   for (const part of rel.split(sep)) {
     current = join(current, part)
-    if (existsSync(current) && lstatSync(current).isSymbolicLink()) {
-      throw new Error('Symlink refused: ' + current)
+    try {
+      if (lstatSync(current).isSymbolicLink()) throw new Error('Symlink refused: ' + current)
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
     }
   }
   return dest
@@ -44,7 +46,7 @@ export function planUpgrade({ target, platforms, fromSource }, toSource = NEW_SO
       project.startsWith(previous + sep) || project.startsWith(next + sep)) {
     throw new Error('Source directories must be distinct from the target and each other')
   }
-  const oldFiles = plannedFiles(platforms, previous)
+  const oldFiles = plannedFiles(platforms, previous, { allowMissingAssets: true })
   const newFiles = plannedFiles(platforms, next)
   const paths = [...new Set([...oldFiles.keys(), ...newFiles.keys()])].sort()
   const changes = []
@@ -93,7 +95,7 @@ export function planUpgrade({ target, platforms, fromSource }, toSource = NEW_SO
 export function upgrade(options, toSource = NEW_SOURCE) {
   const plan = planUpgrade(options, toSource)
   if (!options.apply || !plan.ready) return { ...plan, applied: false }
-  const oldFiles = plannedFiles(options.platforms, options.fromSource)
+  const oldFiles = plannedFiles(options.platforms, options.fromSource, { allowMissingAssets: true })
   const newFiles = plannedFiles(options.platforms, toSource)
   // All preflight checks must pass before any write. Save original bytes for rollback.
   const snapshots = new Map()
@@ -130,8 +132,16 @@ export function upgrade(options, toSource = NEW_SOURCE) {
         unlinkSync(dest)
       } else {
         mkdirSync(dirname(dest), { recursive: true })
-        // Replacement writes are guarded by an exact baseline content check.
-        writeFileSync(dest, Buffer.from(newFiles.get(path)), action === 'add' ? { flag: 'wx' } : undefined)
+        // Stage content in the destination directory, then rename atomically.
+        // A failed write cannot truncate the previously installed file.
+        const staged = join(dirname(dest), '.sdlc-update-' + randomBytes(12).toString('hex'))
+        try {
+          writeFileSync(staged, Buffer.from(newFiles.get(path)), { flag: 'wx', mode: 0o600 })
+          if (action === 'add' && existsSync(dest)) throw new Error('Destination changed during upgrade: ' + path)
+          renameSync(staged, dest)
+        } finally {
+          if (existsSync(staged)) unlinkSync(staged)
+        }
       }
       completed.push({ path, action })
     }
