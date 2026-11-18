@@ -72,7 +72,7 @@ test('runner saves verbatim evidence securely and reports matching digest', () =
   assert.ok(existsSync(evidenceFile))
   const output = readFileSync(evidenceFile)
   assert.equal(createHash('sha256').update(output).digest('hex'), report.checks[0].outputSha256)
-  assert.match(output.toString('utf8'), /^(?:#|ℹ) tests 1\s*$/m)
+  assert.equal(detectTestCount(output.toString('utf8')), 1)
   assert.throws(() => validateCommit({ repository, config, allowExec: true, logsDir }), /EEXIST/)
 }))
 
