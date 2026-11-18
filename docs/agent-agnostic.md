@@ -1,52 +1,66 @@
-# Agent-independent SDLC adapters (initial compatibility layer)
+# Agent-independent SDLC — current architecture and operations
 
-The shared engine is the existing seven-phase lifecycle, 35 role briefs, templates and deterministic `sdlc-state.mjs`. The installer vendors these resources into each target project and generates host-specific entrypoints; Claude's original marketplace plugin continues to work unchanged.
+Agentic SDLC offers portable, project-local integration for **Codex, OpenCode, GitHub Copilot, Claude Code and Cursor**. The authoritative lifecycle remains the seven phase playbooks, 35 role briefs, templates and deterministic `sdlc-state.mjs`.
 
-## Install
+## Install and inspect
 
-Clone this repository locally, then run from the cloned repository:
-
-```bash
-node scripts/sdlc-install.mjs --target /absolute/path/to/your-project
-```
-
-To select hosts instead of installing all five:
+From a clone of this repository, with an existing target project:
 
 ```bash
-node scripts/sdlc-install.mjs --target /absolute/path/to/your-project --platforms codex,opencode,copilot,claude,cursor
+node scripts/sdlc-install.mjs --target /absolute/project --platforms codex,opencode,copilot,claude,cursor
+node scripts/sdlc-doctor.mjs --target /absolute/project --platforms codex,opencode,copilot,claude,cursor
 ```
 
-The target directory must already exist. The installer never overwrites differing destination files and refuses to traverse symbolic links. Re-running on an identical installation is safe. There is intentionally no force flag; back up and reconcile changes manually before upgrading a modified installation.
+Selecting fewer hosts is supported: `--platforms codex` installs the Codex entrypoint and its native profiles/hooks, along with the shared engine. The installer refuses modified destination files, symlinks and pre-existing configurations that do not match generated content. Installations are idempotent for matching files.
 
-| Host | Installed entrypoint | Invocation |
+| Host | Entry point | Invocation |
 |---|---|---|
-| OpenAI Codex | `.agents/skills/agentic-sdlc/SKILL.md` | Invoke the `agentic-sdlc` skill |
+| Codex | `.agents/skills/agentic-sdlc/SKILL.md` | Invoke the `agentic-sdlc` skill |
 | OpenCode | `.opencode/commands/sdlc.md` | `/sdlc` |
-| GitHub Copilot | `.github/prompts/sdlc.prompt.md` | `/sdlc` prompt in supported Copilot chat clients |
-| Claude Code | `.claude/commands/sdlc.md` | `/sdlc` command |
-| Cursor | `.cursor/rules/agentic-sdlc.mdc` | Explicitly attach/apply the `agentic-sdlc` rule |
+| GitHub Copilot | `.github/prompts/sdlc.prompt.md` | `/sdlc` in a compatible chat client |
+| Claude Code | `.claude/commands/sdlc.md` | `/sdlc` |
+| Cursor | `.cursor/rules/agentic-sdlc.mdc` | Explicitly attach the opt-in rule |
 
-Host support for prompt files, skill discovery, slash commands and delegation depends on the installed version and environment. Restart the host or reload its project instructions after installing. For Cursor, the rule is opt-in (`alwaysApply: false`).
+## Runtime behavior
 
-## Common runtime contract
+The common engine is vendored in `.agentic-sdlc/`. The coding agent reads `.agentic-sdlc/commands/sdlc.md` and the current phase playbook. The state file belongs to the target project at `docs/requirements/sdlc-metadata.yml`; **only the state CLI should modify it**:
 
-- The adapter reads `.agentic-sdlc/commands/sdlc.md`, its phase playbooks and role briefs.
-- Treat `${CLAUDE_PLUGIN_ROOT}` in the original instructions as `.agentic-sdlc`; treat Claude-only tool names as abstract capabilities.
-- Run `node .agentic-sdlc/scripts/sdlc-state.mjs` from the target project root; use the state script for every state transition, not direct metadata editing.
-- Delegation uses the host's available agent feature. Without an equivalent Task facility, run roles sequentially. Do not claim parallel execution or independent review that did not occur.
-- Preserve the three human checkpoints, bounded gate retries, execution evidence and human authorization before publishing.
+```bash
+cd /absolute/project
+node .agentic-sdlc/scripts/sdlc-state.mjs
+```
 
-## Security / parity limitations
+Native profiles for **all 35 roles in each selected host** are generated from the source briefs. The runtime contract can plan dispatch and require evidence, but **does not directly invoke an external coding agent**. Real delegation and read-only reviewer controls depend on the host. Never claim parallel dispatch or independently executed checks without actual evidence.
 
-**This is workflow-level portability, not full enforcement parity.** The Claude Code `PreToolUse` hook and its automatic publish/metadata mutation guard are **not installed as native hooks** for Codex, OpenCode, Copilot or Cursor. Their adapters instruct the agent to request authorization, but a prompt cannot enforce an OS-level security boundary. Use branch protection, protected environments, least-privilege credentials and host-native approval policies to enforce the boundaries.
+Three planned human checkpoints remain required: Define sign-off, Design/ADR sign-off, and Operate next-cycle decision. Publishing Git history, releases or packages requires separate human approval. Retry counts and gate verdicts persist across sessions.
 
-Host-specific subagent prompts, model routing, sandbox control and telemetry are not yet fully mapped to each agent's native API. This adapter does not claim those features are implemented or that the end-to-end SDLC has been verified on all five hosts.
+## Native hooks
 
-## Verification
+Unlike the original initial prototype, portable distribution **now installs host-native hooks** for all five hosts. Their underlying policies reuse `scripts/sdlc-guard.mjs`, including direct metadata edit denial and sensitive Git/publishing gates. The adapters are deliberately not uniform: Codex and OpenCode block operations where a reliable interactive ask isn't available; Cursor supports a shell approval hook; Copilot's behavior depends on interactive/cloud support. Native hooks need to be activated/trusted in the actual client and can be bypassed by unsupported event types.
+
+See [native hook details](native-guard-hooks.md) and [release limitations](certification.md). Host configuration alone is **not** an OS sandbox, and a successful `node --test` run is **not** certification of all five host clients.
+
+## Safe upgrade
+
+The upgrade CLI compares a matching **previous distribution checkout** with the new checkout and updates unchanged managed files while protecting project customizations. Dry-run is the default:
+
+```bash
+node scripts/sdlc-upgrade.mjs --target /absolute/project \
+  --platforms codex,opencode,copilot,claude,cursor \
+  --from-source /absolute/previous-agentic-sdlc-checkout
+```
+
+Review the plan, then add `--apply`. This operation does not download releases or overwrite unknown changes; use a prior source snapshot corresponding to the existing installation. Old source profiles generated by a significantly different distribution contract may not match: in that case the operation **stops** and requires manual migration. Back up your project and keep the previous checkout until validation finishes.
+
+For full instructions, see [safe upgrade guide](upgrade.md).
+
+## Verify and uninstall
 
 ```bash
 node --test
-node scripts/sdlc-install.mjs --target /path/to/a/throwaway-project
+node scripts/sdlc-uninstall.mjs --target /absolute/project --platforms codex,opencode,copilot,claude,cursor
 ```
 
-The installer tests exercise five entrypoint formats, idempotency, collision preflight, symlink refusal and input validation.
+Uninstall is a dry run unless `--apply` is specified. It only deletes byte-for-byte matching managed files. No root `package.json` is required; use `node --test`, not `npm test`.
+
+Further details: [role profiles](full-agent-compatibility.md), [certification](certification.md) and [README](../README.md).
