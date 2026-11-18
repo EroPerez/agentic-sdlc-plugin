@@ -27,6 +27,10 @@ The portable adapter series now includes a versioned runtime contract, fail-clos
 
 Run `node --test` and the installer/doctor smoke checks. Before publication, collect real client evidence and run `node scripts/sdlc-certify.mjs --input <attestations.json> --commit <sha> --evidence-root <logs-dir>`. See [certification and release criteria](docs/certification.md). Without verified external evidence, the release remains unapproved.
 
+## Native safety hooks for Codex, OpenCode, Copilot and Cursor
+
+The agent-independent installer now registers native hooks that enforce the original Claude Code SDLC guard rules: protect `sdlc-metadata.yml` from direct edits and gate publication/history commands. Hosts without an enforceable approval prompt block sensitive operations and require a separate manual authorization path. See [native guard hooks](docs/native-guard-hooks.md) for events, test commands, host-specific enforcement limits and installation conflicts.
+
 ## Requirements
 
 - **Claude Code** (CLI, desktop, web, or IDE extension).
