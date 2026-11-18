@@ -26,3 +26,5 @@ jobs:
           node scripts/sdlc-install.mjs --target "$RUNNER_TEMP/sdlc-smoke" --platforms codex,opencode,copilot,claude,cursor
           node scripts/sdlc-doctor.mjs --target "$RUNNER_TEMP/sdlc-smoke" --platforms codex,opencode,copilot,claude,cursor
           node scripts/sdlc-install.mjs --target "$RUNNER_TEMP/sdlc-smoke" --platforms codex,opencode,copilot,claude,cursor
+          node scripts/sdlc-uninstall.mjs --target "$RUNNER_TEMP/sdlc-smoke" --platforms codex,opencode,copilot,claude,cursor
+          node scripts/sdlc-uninstall.mjs --target "$RUNNER_TEMP/sdlc-smoke" --platforms codex,opencode,copilot,claude,cursor --apply

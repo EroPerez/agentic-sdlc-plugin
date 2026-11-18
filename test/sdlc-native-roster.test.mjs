@@ -25,7 +25,8 @@ test('the 35 canonical roles generate 175 distinct native host profiles', () => 
 test('native reviewer roles have host-scoped read-only declarations', () => {
   const files = generatedRoleEntrypoints(PLATFORMS, ROOT)
   const name = 'sdlc-develop-code-reviewer'
-  assert.match(files.get(`.codex/agents/${name}.toml`), /sandbox_mode = "read-only"/)
+  assert.doesNotMatch(files.get(`.codex/agents/${name}.toml`), /sandbox_mode/)
+  assert.match(files.get(`.codex/agents/${name}.toml`), /developer_instructions/)
   assert.match(files.get(`.opencode/agents/${name}.md`), /action: edit\s+resource: "\*"\s+effect: deny/)
   assert.match(files.get(`.github/agents/${name}.agent.md`), /tools: \["read", "search"\]/)
   assert.match(files.get(`.claude/agents/${name}.md`), /tools: Read, Grep, Glob/)

@@ -1,10 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { parseChecks, validateCommit } from '../scripts/sdlc-review-runner.mjs'
+import { detectTestCount, parseChecks, validateCommit } from '../scripts/sdlc-review-runner.mjs'
 
 function fixture(fn) {
   const root = mkdtempSync(join(tmpdir(), 'sdlc-validation-test-'))
@@ -60,4 +61,43 @@ test('runner refuses dirty source and untrusted refs', () => fixture(({ reposito
   assert.throws(() => validateCommit({ repository, config, ref: 'main;echo hacked', allowExec: true }), /Ref must/)
   writeFileSync(join(repository, 'dirty.txt'), 'untracked')
   assert.throws(() => validateCommit({ repository, config, allowExec: true }), /dirty source tree/)
+}))
+
+test('runner saves verbatim evidence securely and reports matching digest', () => fixture(({ root, repository, config, configure }) => {
+  const logsDir = join(root, 'evidence')
+  configure([{ name: 'unit', command: process.execPath, args: ['--test'], requireTests: true }])
+  const report = validateCommit({ repository, config, allowExec: true, logsDir })
+  assert.equal(report.verdict, 'PASS')
+  const evidenceFile = report.checks[0].evidenceFile
+  assert.ok(existsSync(evidenceFile))
+  const output = readFileSync(evidenceFile)
+  assert.equal(createHash('sha256').update(output).digest('hex'), report.checks[0].outputSha256)
+  assert.match(output.toString('utf8'), /^(?:#|ℹ) tests 1\s*$/m)
+  assert.throws(() => validateCommit({ repository, config, allowExec: true, logsDir }), /EEXIST/)
+}))
+
+test('test count parser supports TAP, spec, ANSI colors and absent summaries', () => {
+  assert.equal(detectTestCount('TAP version 13\n# tests 12\n# pass 12\n'), 12)
+  assert.equal(detectTestCount('✔ one (1ms)\nℹ tests 1\nℹ pass 1\n'), 1)
+  assert.equal(detectTestCount('\u001b[32mℹ tests 2\u001b[0m\n'), 2)
+  assert.equal(detectTestCount('application stdout with no test summary'), null)
+  assert.equal(detectTestCount('# tests 0\n'), 0)
+})
+
+test('runner accepts a real Node spec reporter with collected tests', () => fixture(({ repository, config, configure }) => {
+  configure([{ name: 'spec', command: process.execPath,
+    args: ['--test', '--test-reporter=spec'], requireTests: true }])
+  const result = validateCommit({ repository, config, allowExec: true })
+  assert.equal(result.verdict, 'PASS')
+  assert.equal(result.checks[0].exitCode, 0)
+  assert.equal(result.checks[0].testCount, 1)
+}))
+
+test('runner accepts a real Node TAP reporter with collected tests', () => fixture(({ repository, config, configure }) => {
+  configure([{ name: 'tap', command: process.execPath,
+    args: ['--test', '--test-reporter=tap'], requireTests: true }])
+  const result = validateCommit({ repository, config, allowExec: true })
+  assert.equal(result.verdict, 'PASS')
+  assert.equal(result.checks[0].exitCode, 0)
+  assert.equal(result.checks[0].testCount, 1)
 }))

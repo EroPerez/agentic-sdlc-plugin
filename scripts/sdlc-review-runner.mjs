@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Execute configured checks against a detached Git commit in a disposable worktree.
 // This isolates repository changes; it is NOT an OS sandbox or a publication guard.
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, mkdirSync, writeFileSync, lstatSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
@@ -23,13 +23,17 @@ function processResult(command, args, cwd, timeoutMs = DEFAULT_TIMEOUT) {
     error: result.error?.message ?? null,
     durationMs: Date.now() - start,
     outputSha256: createHash('sha256').update(output).digest('hex'),
-    testCount: detectTestCount(output)
+    testCount: detectTestCount(output),
+    output
   }
 }
 
-function detectTestCount(output) {
-  const tap = output.match(/^# tests (\d+)\s*$/m)
-  return tap ? Number(tap[1]) : null
+export function detectTestCount(output) {
+  // Node's test runner can output TAP ("# tests 1") or spec ("ℹ tests 1").
+  // Reporter choice varies with Node version and TTY; inspect only summary lines.
+  const normalized = output.replace(/\x1b\[[0-9;]*m/g, '')
+  const summaries = [...normalized.matchAll(/^(?:#|ℹ) tests (\d+)\s*$/gm)]
+  return summaries.length ? Number(summaries[summaries.length - 1][1]) : null
 }
 
 export function parseChecks(content) {
@@ -60,7 +64,7 @@ function git(cwd, args) {
   return run.stdout.trim()
 }
 
-export function validateCommit({ repository, config, ref = 'HEAD', allowExec = false }) {
+export function validateCommit({ repository, config, ref = 'HEAD', allowExec = false, logsDir = null }) {
   if (!allowExec) throw new Error('Execution requires explicit --allow-exec')
   const root = resolve(repository)
   const checks = parseChecks(readFileSync(resolve(config), 'utf8'))
@@ -69,6 +73,16 @@ export function validateCommit({ repository, config, ref = 'HEAD', allowExec = f
   const dirty = git(root, ['status', '--porcelain'])
   if (dirty) throw new Error('Refusing dirty source tree; commit or stash changes first')
   const sha = git(root, ['rev-parse', '--verify', `${ref}^{commit}`])
+  if (logsDir !== null) {
+    const dest = resolve(logsDir)
+    if (dest === repoRoot || dest.startsWith(repoRoot + sep)) {
+      throw new Error('Evidence output directory must be outside the repository')
+    }
+    mkdirSync(dest, { recursive: true, mode: 0o700 })
+    if (!lstatSync(dest).isDirectory() || lstatSync(dest).isSymbolicLink()) {
+      throw new Error('Evidence output must be a non-symlink directory')
+    }
+  }
   const parent = mkdtempSync(join(tmpdir(), 'agentic-sdlc-validation-'))
   const checkout = join(parent, 'checkout')
   let attached = false
@@ -77,12 +91,14 @@ export function validateCommit({ repository, config, ref = 'HEAD', allowExec = f
     attached = true
     const results = []
     for (const check of checks) {
-      const evidence = processResult(check.command, check.args, checkout, check.timeoutMs)
+      const { output, ...evidence } = processResult(check.command, check.args, checkout, check.timeoutMs)
+      const evidenceFile = logsDir ? join(resolve(logsDir), `${sha}-${check.name}.log`) : null
+      if (evidenceFile) writeFileSync(evidenceFile, output, { flag: 'wx', mode: 0o600 })
       const status = evidence.exitCode === 0 && !evidence.signal && !evidence.error &&
         (!check.requireTests || (evidence.testCount !== null && evidence.testCount > 0))
         ? 'PASS' : 'FAIL'
       results.push({ name: check.name, command: check.command, args: check.args,
-        requireTests: check.requireTests, ...evidence, status })
+        requireTests: check.requireTests, ...evidence, evidenceFile, status })
       if (status === 'FAIL') break
     }
     return { schemaVersion: 1, commit: sha, checks: results,
@@ -102,15 +118,17 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     let config
     let ref = 'HEAD'
     let allowExec = false
+    let logsDir = null
     for (let i = 0; i < argv.length; i++) {
       if (argv[i] === '--repository' && argv[i + 1]) repository = argv[++i]
       else if (argv[i] === '--config' && argv[i + 1]) config = argv[++i]
       else if (argv[i] === '--ref' && argv[i + 1]) ref = argv[++i]
       else if (argv[i] === '--allow-exec') allowExec = true
+      else if (argv[i] === '--logs-dir' && argv[i + 1]) logsDir = argv[++i]
       else throw new Error(`Unknown argument: ${argv[i]}`)
     }
     if (!config) throw new Error('--config is required')
-    const report = validateCommit({ repository, config, ref, allowExec })
+    const report = validateCommit({ repository, config, ref, allowExec, logsDir })
     process.stdout.write(JSON.stringify(report, null, 2) + '\n')
     if (report.verdict !== 'PASS') process.exitCode = 2
   } catch (error) {
