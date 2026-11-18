@@ -12,7 +12,7 @@ const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ASSETS = ['agents', 'commands', 'phases', 'references', 'scripts/sdlc-state.mjs',
   'scripts/sdlc-guard.mjs', 'scripts/sdlc-review-runner.mjs',
   'scripts/sdlc-runtime.mjs', 'scripts/sdlc-roles.mjs', 'scripts/sdlc-certify.mjs',
-  'scripts/sdlc-uninstall.mjs', 'scripts/sdlc-hook-bridge.mjs',
+  'scripts/sdlc-uninstall.mjs', 'scripts/sdlc-upgrade.mjs', 'scripts/sdlc-hook-bridge.mjs',
   'scripts/sdlc-hook-entries.mjs', 'skills', 'templates']
 const DEST = '.agentic-sdlc'
 
@@ -100,7 +100,7 @@ function collectFiles(base, prefix = '') {
   return files
 }
 
-export function plannedFiles(platforms, source = SOURCE) {
+export function plannedFiles(platforms, source = SOURCE, { allowMissingAssets = false } = {}) {
   source = resolve(source)
   const planned = new Map(entrypoints(platforms))
   for (const [path, content] of nativeEntrypoints(platforms, source)) {
@@ -117,7 +117,10 @@ export function plannedFiles(platforms, source = SOURCE) {
   }
   for (const asset of ASSETS) {
     const sourcePath = join(source, asset)
-    if (!existsSync(sourcePath)) throw new Error(`Missing distribution asset: ${asset}`)
+    if (!existsSync(sourcePath)) {
+      if (allowMissingAssets) continue
+      throw new Error(`Missing distribution asset: ${asset}`)
+    }
     if (lstatSync(sourcePath).isSymbolicLink()) throw new Error(`Source symlink refused: ${asset}`)
     for (const file of lstatSync(sourcePath).isDirectory() ? collectFiles(source, asset) : [asset]) {
       planned.set(join(DEST, file), readFileSync(join(source, file)))
