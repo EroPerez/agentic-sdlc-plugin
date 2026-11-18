@@ -12,7 +12,7 @@ const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ASSETS = ['agents', 'commands', 'phases', 'references', 'scripts/sdlc-state.mjs',
   'scripts/sdlc-guard.mjs', 'scripts/sdlc-review-runner.mjs',
   'scripts/sdlc-runtime.mjs', 'scripts/sdlc-roles.mjs', 'scripts/sdlc-certify.mjs',
-  'scripts/sdlc-uninstall.mjs', 'scripts/sdlc-hook-bridge.mjs',
+  'scripts/sdlc-uninstall.mjs', 'scripts/sdlc-upgrade.mjs', 'scripts/sdlc-hook-bridge.mjs',
   'scripts/sdlc-hook-entries.mjs', 'skills', 'templates']
 const DEST = '.agentic-sdlc'
 
