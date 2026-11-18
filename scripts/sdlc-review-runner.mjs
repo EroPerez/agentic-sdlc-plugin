@@ -10,11 +10,20 @@ import { fileURLToPath } from 'node:url'
 
 const DEFAULT_TIMEOUT = 120000
 
+export function childProcessEnvironment(parentEnv = process.env) {
+  // Node's test runner injects NODE_TEST_CONTEXT into test worker processes.
+  // Passing it to nested "node --test" suppresses test discovery while returning exit 0.
+  // This marker belongs to the parent test worker, never to a separately spawned check.
+  const environment = { ...parentEnv, GIT_TERMINAL_PROMPT: '0' }
+  delete environment.NODE_TEST_CONTEXT
+  return environment
+}
+
 function processResult(command, args, cwd, timeoutMs = DEFAULT_TIMEOUT) {
   const start = Date.now()
   const result = spawnSync(command, args, {
     cwd, encoding: 'utf8', shell: false, timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+    env: childProcessEnvironment()
   })
   const output = (result.stdout || '') + (result.stderr || '')
   return {
