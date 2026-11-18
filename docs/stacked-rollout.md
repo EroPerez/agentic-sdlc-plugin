@@ -1,35 +1,17 @@
-# Stacked host integration rollout
+# Historical stacked-PR rollout (archived)
 
-These branches deliberately form a linear **stack**. Review and merge them from top to bottom by merging the first PR into `main`, then retargeting each dependent PR to `main` once its parent is merged. Do not squash a child branch into `main` while its parent is unmerged, or the resulting diff includes every ancestor's changes.
+This file documents the **original development history**, not an installation procedure or list of currently open branches.
 
-| Order | Branch | Base | Scope |
-|---|---|---|---|
-| 1 | `feat/agent-agnostic-adapters` | `main` | Portable engine and host entrypoints |
-| 2 | `feat/agent-host-contracts` | `feat/agent-agnostic-adapters` | Native host manifest loader and preflight |
-| 3 | `feat/sdlc-codex-native` | `feat/agent-host-contracts` | Codex reviewer and implementer |
-| 4 | `feat/sdlc-opencode-native` | `feat/sdlc-codex-native` | OpenCode reviewer and implementer |
-| 5 | `feat/sdlc-copilot-native` | `feat/sdlc-opencode-native` | Copilot reviewer and implementer |
-| 6 | `feat/sdlc-cursor-native` | `feat/sdlc-copilot-native` | Cursor reviewer and implementer |
-| 7 | `feat/sdlc-claude-native` | `feat/sdlc-cursor-native` | Claude reviewer and implementer |
-| 8 | `test/sdlc-cross-agent-contracts` | `feat/sdlc-claude-native` | Distribution smoke tests and manifest validation |
+The initial cross-agent migration was developed as a stack of feature branches and merged. Its milestones included portable installation, native agent profiles for Codex/OpenCode/Copilot/Cursor/Claude, 35 role definitions per host, safety guards, installation integrity checks, independent worktree validation, runtime/certification contracts and native hook translations.
 
-## Development and verification
+**Do not recreate or merge the old stack to use the tool.** Clone the current `main` branch and follow the [README](../README.md) or [agent-independent guide](agent-agnostic.md).
 
-On the final stack tip, use Node 18 or newer:
+## Current operational tasks
 
-```bash
-node --test
-node scripts/sdlc-install.mjs --target /path/to/empty-test-project
-```
+- Confirm each supported coding host loads its native profiles and hooks, including effective permission boundaries.
+- Run end-to-end scenarios in all five clients; collect genuine evidence and human approvals.
+- Run the Node test matrix, installer and doctor checks.
+- Use [safe upgrade](upgrade.md) for version changes that have an exact previous installed-source baseline.
+- Verify [release certification](certification.md) before any production compatibility claim.
 
-The installer is intentionally conservative: it refuses to overwrite differing files, refuses symlinks, and validates the native host manifest paths. New native manifests in `integrations/<host>.json` are discovered by the installer; each is a `schemaVersion: 1` object with a `files` map. Role prompts are version-controlled beside the common engine, but the installer vendors them into each target project.
-
-## Remaining release gates
-
-- Run the Node tests and inspect the complete result, including installer smoke tests.
-- Run an end-to-end lifecycle in each host, including state resume, human sign-off, test evidence, and a failed gate.
-- Verify publishing controls under actual host permissions, not only prompt instructions.
-- Check model routing and native delegation separately; two native profiles per host do **not** imply that all 35 source role briefs are registered as native subagents.
-- Confirm applicable AGPL-3.0-or-later distribution obligations.
-
-No branch in this stack automatically merges, deploys or publishes the plugin. Production compatibility is not claimed until the above checks pass.
+The previous rollout sequence is retained in Git history and closed PRs for audit purposes. New work should target `main` or a branch based on `main`, rather than old stacked PR branches.
