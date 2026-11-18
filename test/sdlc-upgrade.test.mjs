@@ -40,9 +40,8 @@ test('upgrade defaults to preview and applies only baseline-verified changes', (
   assert.equal(readFileSync(join(target, relativePath), 'utf8'),
     readFileSync(join(ROOT, 'agents', 'sdlc-prepare-explorer.md'), 'utf8'))
   assert.equal(readFileSync(join(target, 'owned-by-project.txt'), 'utf8'), 'untouched')
-  const again = planUpgrade({ target, fromSource: ROOT, platforms: ['codex'] }, ROOT)
   // Version sources must be distinct: no accidental self-upgrade.
-  assert.equal(again.ready, false)
+  assert.throws(() => planUpgrade({ target, fromSource: ROOT, platforms: ['codex'] }, ROOT), /Source directories/)
 }))
 
 test('upgrade preflight blocks user-modified files without partial writes', () => fixture(({ oldSource, target }) => {
@@ -71,4 +70,19 @@ test('upgrade does not edit the previous version source or target when a source 
   assert.throws(() => planUpgrade({ target, fromSource: target, platforms: ['codex'] }, ROOT), /Source directories/)
   assert.deepEqual(readFileSync(file), original)
   assert.equal(existsSync(join(oldSource, 'agents/sdlc-prepare-explorer.md')), true)
+}))
+
+test('upgrader can safely add a new asset absent from previous distribution', () => fixture(({ oldSource, target }) => {
+  const olderAsset = join(oldSource, 'scripts/sdlc-upgrade.mjs')
+  const destination = join(target, '.agentic-sdlc/scripts/sdlc-upgrade.mjs')
+  // Model a legacy version that did not distribute the upgrade command.
+  rmSync(olderAsset)
+  rmSync(destination)
+  const preview = planUpgrade({ target, fromSource: oldSource, platforms: ['codex'] }, ROOT)
+  assert.equal(preview.ready, true)
+  assert.ok(preview.changes.some(change => change.path === '.agentic-sdlc/scripts/sdlc-upgrade.mjs'
+    && change.action === 'add'))
+  const result = upgrade({ target, fromSource: oldSource, platforms: ['codex'], apply: true }, ROOT)
+  assert.equal(result.applied, true)
+  assert.equal(existsSync(destination), true)
 }))
