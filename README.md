@@ -313,12 +313,18 @@ See [verification and certification](docs/certification.md).
 
 ## Updates and safe removal
 
-The installer will **not force-overwrite** modified or older generated files. For upgrades:
+The installer will **not force-overwrite** modified generated files. For an existing installation, use the **safe upgrade CLI** from a new distribution checkout and provide the **previous source checkout corresponding to the installed files**. Back up the project first.
 
-1. Back up the target repository and its configuration.
-2. Fetch the updated Agentic SDLC repository.
-3. Run the doctor to identify differences.
-4. Compare and manually merge any changed hook/profile files before reinstalling. Do not delete user-owned settings to bypass a collision.
+Preview changes (this does not write to the target):
+
+~~~bash
+node scripts/sdlc-upgrade.mjs \
+  --target /absolute/path/to/my-project \
+  --platforms codex,opencode,copilot,claude,cursor \
+  --from-source /absolute/path/to/previous-agentic-sdlc-checkout
+~~~
+
+After reviewing the JSON plan, add **--apply** to the same command and run `sdlc-doctor.mjs` to confirm integrity. The upgrader handles unchanged managed files and safely adds/replaces/removes changed distribution files. It **blocks custom modifications, unsafe paths and collisions**, instead of overwriting them. It does not fetch releases automatically; a prior source checkout and manual migration for incompatible historical generated formats are still required. See the [upgrade guide](docs/upgrade.md) for rollback and security limitations.
 
 To uninstall, use the source checkout/version corresponding to the installed files and **preview** first:
 
